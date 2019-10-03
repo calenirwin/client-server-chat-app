@@ -22,6 +22,25 @@ lokiAddr = "192.197.151.116"
 serverPort = 50330
 clientSocket = socket(AF_INET, SOCK_STREAM)
 clientSocket.connect((lokiAddr, serverPort))
+while True:
+    user = input("Enter username: ")
+    if len(user) == 0:
+        print("Username cannot be empty")
+        continue
+    elif len(user) > 20:
+        print("Usernamme cannot exceed 20 characters")
+        continue
+    elif userInput == "all":
+        print("Username cannot be \"all\"")
+        continue
+    pkt = packetStruct.pack(VERSION, packetNum, user, "", "login", "")
+    clientSocket.send(pkt)
+    packetNum += 1
+    srvPkt = packetStruct.unpack(clientSocket.recv(311))
+    if srvPkt[4] == "dupName":
+        print("Username already in use")
+        continue
+    break
 # todo: get username/confirm
 while True:
     # standard input socket and client socket
@@ -34,7 +53,7 @@ while True:
         # data from the server
         # TODO: add proper packet handling
         if s == clientSocket:
-            data = s.recv(1024)
+            data = s.recv(311)
             if not data:
                 print('\nTerminanting chat room connection.')
                 sys.exit()
