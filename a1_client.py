@@ -7,6 +7,7 @@
 #             https://www.binarytides.com/code-chat-application-server-client-sockets-python/
 from socket import *
 from struct import *
+from select import select
 VERSION = "1"
 
 # Packet Definition
@@ -30,7 +31,7 @@ while True:
     elif len(user) > 20:
         print("Usernamme cannot exceed 20 characters")
         continue
-    elif userInput == "all":
+    elif user == "all":
         print("Username cannot be \"all\"")
         continue
     pkt = packetStruct.pack(VERSION, packetNum, user, "", "login", "")
@@ -46,7 +47,7 @@ while True:
     # standard input socket and client socket
     socketList = [sys.stdin, clientSocket]
     # use select to get sockets ready to be read
-    readSockets, writeSockets, errorSockets = select.select(socketList, [], [])
+    readSockets, writeSockets, errorSockets = select(socketList, [], [])
     # loop through readable sockets
     for s in readSockets:
         # if the socket is the client socket, then the client is being sent
@@ -65,26 +66,26 @@ while True:
             userInput = sys.stdin.readline()
             userInput = userInput.split(":", 1)
 
-            if len(usrInput) == 2:
-                if (len(usrInput[1]) > 255):
+            if len(userInput) == 2:
+                if (len(userInput[1]) > 255):
                     print("Message too long")
                 else:
-                    if usrInput[0] == "all":
-                        pkt = packetStruct.pack(VERSION, packetNum, user, "all", "msgAll", usrInput[1])
+                    if userInput[0] == "all":
+                        pkt = packetStruct.pack(VERSION, packetNum, user, "all", "msgAll", userInput[1])
                         clientSocket.send(pkt)
                         packetNum += 1
                     else:
-                        if (len(usrInput[0]) > 20 or not usrInput[0]):
+                        if (len(userInput[0]) > 20 or not userInput[0]):
                             print("Invalid username")
                         else:
-                            pkt = packetStruct.pack(VERSION, packetNum, user, userInput[0], "msg", usrInput[1])
+                            pkt = packetStruct.pack(VERSION, packetNum, user, userInput[0], "msg", userInput[1])
                             clientSocket.send(pkt)
                             packetNum += 1
-            elif usrInput == "who":
+            elif userInput == "who":
                 pkt = packetStruct.pack(VERSION, packetNum, user, "", "who", "")
                 clientSocket.send(pkt)
                 packetNum += 1
-            elif  usrInput == "bye":
+            elif  userInput == "bye":
                 pkt = packetStruct.pack(VERSION, packetNum, user, "", "bye", "")
                 clientSocket.send(pkt)
                 clientSocket.close()
