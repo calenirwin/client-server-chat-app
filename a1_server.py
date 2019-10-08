@@ -12,17 +12,7 @@ from select import select
 from enum import Enum
 VERSION = "1"
 PACKET_SIZE = 311
-
-if __name__ == "__main__":
-# Packet Definition
-# ! = byte-ordering
-# H = unsigned short
-# c = character
-# p = varaible length string where the maximum length is specified by the number
-#     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
-packetStruct = Struct("!Hc21p21p11p256p")
-
-class PktFormat(Enum):
+class PacketFormat(Enum):
     H_PACKETNUM = 0
     H_VERSION = 1
     H_SOURCE = 2
@@ -30,82 +20,93 @@ class PktFormat(Enum):
     H_VERB = 4
     BODY = 5
 
-packetNum = 0
+def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
+    packet = struct.pack(version, packetNum, src, dest, verb, body)
+    socket.send(packet)
+    packetNum += 1
 
-connectionList = []
-connectedClientList = []
+def main():
+    # Packet Definition
+    # ! = byte-ordering
+    # H = unsigned short
+    # c = character
+    # p = varaible length string where the maximum length is specified by the number
+    #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
+    packetStruct = Struct("!Hc21p21p11p256p")
 
-lokiAddr = "192.197.151.116"
-serverPort = 50330
-serverSocket = socket(AF_INET, SOCK_STREAM)
-serverSocket.bind((lokiAddr, serverPort))
-serverSocket.listen(5)
+    
 
-connectionList.append(serverSocket)
+    packetNum = 0
 
-while True:
-    readSockets, writeSockets, errorSockets = select.select(connectionList, [], [])
+    connectionList = []
+    connectedClientList = []
 
-    for s in readSockets:
-        # handle a new client connection
-        if s == serverSocket:
-            sd, clientAddr = serverSocket.accept()
-            connectionList.append(sd)
-            cliPkt = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
-            if len(connectedClientList) > 5
-                capacityErr = "Error: Server capacity is full. Please try again later."
-                pkt = packetStruct.pack(VERSION, packetNum, "", cliPkt[PktFormat.H_SOURCE], "err", capacityErr)
-                sd.send(pkt)
-            # handle duplicate name
-            elif cliPkt[2] in connectedClientList:
-                dupErr = "Error: That name already exists. Please try connecting using a different name"
-                pkt = packetStruct.pack(VERSION, packetNum, "", cliPkt[PktFormat.H_SOURCE], "err", dupErr)
-                sd.send(pkt);
-                # remove client from connection list
-                del connectionList[-1]
-            else
-                # add clients name to list of connected clients
-                connectedClientList.append(cliPkt[PktFormat.H_SOURCE])
-                # send connection confirmation message
-                pkt = packetStruct.pack(VERSION, packetNum, "", cliPkt[PktFormat.H_SOURCE], "suc", "")
+    lokiAddr = "192.197.151.116"
+    serverPort = 50330
+    serverSocket = socket(AF_INET, SOCK_STREAM)
+    serverSocket.bind((lokiAddr, serverPort))
+    serverSocket.listen(5)
 
-        # handle incoming message from existing clients
-        else:
-            cliPkt = packetStruct.unpack(clientSocket.recv(packetBuf))
-            verb = cliPkt[PktFormat.H_VERB]
+    connectionList.append(serverSocket)
 
-            if verb == 'msg':
-                if cliPkt[PktFormat.H_DEST] not in connectedClientList:
-                    destNotFoundErr = "Error: The recipient of your message is not connected."
-                    pkt = packetStruct.pack(VERSION, packetNum, "", cliPkt[PktFormat.H_SOURCE], "err", destNotFoundErr)
-                    # send the error message back to server
-                    socketIndex = connectedClientList.index(cliPkt[PktFormat.H_SOURCE]) + 1
-                    connectionList[socketIndex].send(pkt)
+    while True:
+        readSockets, writeSockets, errorSockets = select(connectionList, [], [])
+
+        for sock in readSockets:
+            # handle a new client connection
+            if sock == serverSocket:
+                sd, clientAddr = serverSocket.accept()
+                connectionList.append(sd)
+                clientPacket = packetStruct.unpack(sock.recv(PACKET_SIZE))
+                if len(connectedClientList) > 5:
+                    capacityErr = "Error: Server capacity is full. Please try again later."
+                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "err", capacityErr)
+                # handle duplicate name
+                elif clientPacket[2] in connectedClientList:
+                    dupErr = "Error: That name already exists. Please try connecting using a different name"
+                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "err", dupErr)
+                    # remove client from connection list
+                    del connectionList[-1]
                 else:
-                    pkt = packetStruct.pack(VERSION, packetNum, cliPkt[PktFormat.H_SOURCE], cliPkt[PktFormat.H_DEST], "err", "")
-                    socketIndex = connectedClientList.index(cliPkt[PktFormat.H_DEST]) + 1
-                    connectionList[socketIndex].send(pkt)
+                    # add clients name to list of connected clients
+                    connectedClientList.append(clientPacket[PacketFormat.H_SOURCE])
+                    # send connection confirmation message
+                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "suc", "")
 
-            elif verb == 'all':
-                for client in connectedClientList:
-                    pkt = packetStruct.pack(VERSION, packetNum, cliPkt[PktFormat.H_SOURCE], client, "all", cliPkt[PktFormat.BODY])
-                    # send the packet back to sender
-                    socketIndex = connectedClientList.index(client) + 1
-                    connectionList[socketIndex].send(pkt)
+            # handle incoming message from existing clients
+            else:
+                clientPacket = packetStruct.unpack(sock.recv(PACKET_SIZE))
+                verb = clientPacket[PacketFormat.H_VERB]
 
-            elif verb == 'who':
-                clients = "Connected Users: "
-                for client in connectedClientList:
-                    clients += client + " | "
-                pkt = packetStruct.pack(VERSION, packetNum, "", cliPkt[pktformat.H_SOURCE], "who", clients)
-                socketIndex = connectedClientList.index(cliPkt[pktformat.H_SOURCE]) + 1
-                connectionList[socketIndex].send(pkt)
+                if verb == 'msg':
+                    if clientPacket[PacketFormat.H_DEST] not in connectedClientList:
+                        destNotFoundErr = "Error: The recipient of your message is not connected."
+                        send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "err", destNotFoundErr)
+                        # send the error message back to server
+                    else:
+                        socketIndex = connectedClientList.index(clientPacket[PacketFormat.H_DEST]) + 1
+                        send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[PacketFormat.H_SOURCE], clientPacket[PacketFormat.H_DEST], "err", "")
 
-            elif verb == 'bye':
-                clientIndex = connectedClientList.index(PktFormat.H_SOURCE)
-                socketIndex = clientIndex + 1
+                elif verb == 'all':
+                    index = 1
+                    for client in connectedClientList:
+                        if client != clientPacket[PacketFormat.H_SOURCE]:
+                            send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[PacketFormat.H_SOURCE], client, "all", clientPacket[PacketFormat.BODY])
+                        index += 1
+                        # send the packet back to sender
 
-                connectedClientList.pop(clientIndex)
-                connectionList.pop(socketIndex)
+                elif verb == 'who':
+                    clients = "Connected Users: " + ", ".join(connectedClientList)
+                    send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "who", clients)
 
-serverSocket.close()
+                elif verb == 'bye':
+                    clientIndex = connectedClientList.index(PacketFormat.H_SOURCE)
+                    socketIndex = clientIndex + 1
+
+                    connectedClientList.pop(clientIndex)
+                    connectionList.pop(socketIndex)
+
+    serverSocket.close()
+
+if __name__ == "__main__":
+    main()
