@@ -9,16 +9,16 @@ from socket import *
 from struct import *
 from select import select
 from enum import Enum
+from sys import stdin, exit
 VERSION = "1"
-PACKET_SIZE = 305
+PACKET_SIZE = 304
 packetNum = 0
-class PacketFormat(Enum):
-    H_PACKETNUM = 0
-    H_VERSION = 1
-    H_SOURCE = 2
-    H_DEST = 3
-    H_VERB = 4
-    BODY = 5
+H_PACKETNUM = 0
+H_VERSION = 1
+H_SOURCE = 2
+H_DEST = 3
+H_VERB = 4
+BODY = 5
 
 
 def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
@@ -35,13 +35,13 @@ def main():
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     
     
-    packetStruct = Struct("!Hc21p21p4p256p")
+    packetStruct = Struct("!cH21p21p3s256p")
     lokiAddr = "192.197.151.116"
     serverPort = 50330
     clientSocket = socket(AF_INET, SOCK_STREAM)
     clientSocket.connect((lokiAddr, serverPort))
     while True:
-        user = input("Enter username: ")
+        user = raw_input("Enter username: ")
         if len(user) == 0:
             print("Username cannot be empty")
             continue
@@ -52,15 +52,16 @@ def main():
             print("Username cannot be \"all\"")
             continue
         send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "login", "")
-        serverPacket = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
-        if serverPacket[PacketFormat.H_VERB] == "err":
-            print(serverPacket[PacketFormat.BODY])
-        elif serverPacket[PacketFormat.H_VERB] == "suc":
+        serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
+        print(serverPacket[H_VERB])
+        if serverPacket[H_VERB] == "err":
+            print(serverPacket[BODY])
+        elif serverPacket[H_VERB] == "suc":
             break
     # todo: get username/confirm
     while True:
         # standard input socket and client socket
-        socketList = [sys.stdin, clientSocket]
+        socketList = [stdin, clientSocket]
         # use select to get sockets ready to be read
         readSockets, writeSockets, errorSockets = select(socketList, [], [])
         # loop through readable sockets
@@ -69,24 +70,23 @@ def main():
             # data from the server
             # TODO: add proper packet handling
             if s == clientSocket:
-                serverPacket = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
+                serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
                 if not serverPacket:
                     print('\nTerminanting chat room connection.')
-                    sys.exit()
+                    exit()
                 else:
-                    verb = serverPacket[PacketFormat.H_VERB]
+                    verb = serverPacket[H_VERB]
                     if verb == "msg":
-                        print(serverPacket[PacketFormat.H_SOURCE] + ": " + serverPacket[PacketFormat.BODY])
+                        print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
                     elif verb == "all":
-                        print(serverPacket[PacketFormat.H_SOURCE] + " -> All: " + serverPacket[PacketFormat.BODY])
+                        print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
                     elif verb == "noUser":
                         print("User does not exist")
             # otherwise, the client has written in the console
             else:
                 # read input from client
-                userInput = sys.stdin.readline()
-                userInput = userInput.split(":", 1)
-
+                userInput = stdin.readline().strip().split(":", 1)
+                print(userInput[0])
                 if len(userInput) == 2:
                     if (len(userInput[1]) > 255):
                         print("Message too long")
@@ -98,9 +98,9 @@ def main():
                                 print("Invalid username")
                             else:
                                 send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", userInput[1])
-                elif userInput == "who":
+                elif userInput[0] == "who":
                     send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", "")
-                elif  userInput == "bye":
+                elif  userInput[0] == "bye":
                     send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "")
                     clientSocket.close()
                     break
