@@ -11,8 +11,8 @@ from struct import *
 from select import select
 from enum import Enum
 VERSION = "1"
-H_PACKETNUM = 0
-H_VERSION = 1
+H_VERSION = 0
+H_PACKETNUM = 1
 H_SOURCE = 2
 H_DEST = 3
 H_VERB = 4
@@ -98,11 +98,11 @@ def main():
                     send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "who", clients)
 
                 elif verb == 'bye':
-                    clientIndex = connectedClientList.index(H_SOURCE)
+                    clientIndex = connectedClientList.index(clientPacket[H_SOURCE])
                     socketIndex = clientIndex + 1
 
                     connectedClientList.pop(clientIndex)
-                    connectionList.pop(socketIndex)
+                    connectionList.pop(socketIndex).close()
 
     serverSocket.close()
 

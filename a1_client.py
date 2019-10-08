@@ -13,8 +13,8 @@ from sys import stdin, exit
 VERSION = "1"
 PACKET_SIZE = 304
 packetNum = 0
-H_PACKETNUM = 0
-H_VERSION = 1
+H_VERSION = 0
+H_PACKETNUM = 1
 H_SOURCE = 2
 H_DEST = 3
 H_VERB = 4
@@ -82,6 +82,8 @@ def main():
                         print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
                     elif verb == "noUser":
                         print("User does not exist")
+                    elif verb == "who"
+                        print("who: " + serverPacket[BODY])
             # otherwise, the client has written in the console
             else:
                 # read input from client
@@ -103,10 +105,9 @@ def main():
                 elif  userInput[0] == "bye":
                     send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "")
                     clientSocket.close()
-                    break
+                    exit()
                 else:
                     print("Unknown Command")
-    clientSocket.close()
 
 if __name__ == "__main__":
     main()
