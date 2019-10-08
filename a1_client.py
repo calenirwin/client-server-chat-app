@@ -10,7 +10,7 @@ from struct import *
 from select import select
 from enum import Enum
 VERSION = "1"
-PACKET_SIZE = 311
+PACKET_SIZE = 305
 
 # Packet Definition
 # ! = byte-ordering
@@ -18,13 +18,13 @@ PACKET_SIZE = 311
 # c = character
 # p = varaible length string where the maximum length is specified by the number
 #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
-packetStruct = Struct("!Hc21p21p11p256p")
-class PktFormat(Enum):
+packetStruct = Struct("!Hc21p21p4p256p")
+class PacketFormat(Enum):
     H_PACKETNUM = 0
     H_VERSION = 1
     H_SOURCE = 2
     H_DEST = 3
-    H_FUNC = 4
+    H_VERB = 4
     BODY = 5
 packetNum = 0
 
@@ -38,22 +38,17 @@ while True:
         print("Username cannot be empty")
         continue
     elif len(user) > 20:
-        print("Usernamme cannot exceed 20 characters")
+        print("Username cannot exceed 20 characters")
         continue
     elif user == "all":
         print("Username cannot be \"all\"")
         continue
-    pkt = packetStruct.pack(VERSION, packetNum, user, "", "login", "")
-    clientSocket.send(pkt)
-    packetNum += 1
-    srvPkt = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
-    if srvPkt[PktFormat.H_FUNC] == "nameError":
-        print("Username already in use")
-        continue
-    elif srvPkt[PktFormat.H_FUNC] == "connError":
-        print("The chat server is at maximum capacity, try again later")
-        continue
-    break
+    send_packet(VERSION, packetNum, user, "", "login", "")
+    serverPacket = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
+    if serverPacket[PacketFormat.H_VERB] == "err":
+        print(serverPacket[PacketFormat.BODY])
+    elif serverPacket[PacketFormat.H_VERB] == "suc":
+        break
 # todo: get username/confirm
 while True:
     # standard input socket and client socket
@@ -66,17 +61,18 @@ while True:
         # data from the server
         # TODO: add proper packet handling
         if s == clientSocket:
-            srvPkt = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
-            if not srvPkt:
+            serverPacket = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
+            if not serverPacket:
                 print('\nTerminanting chat room connection.')
                 sys.exit()
             else:
-                func = srvPkt[PktFormat.H_FUNC]
-                if func == "msg":
-                    print(srvPkt[PktFormat.H_SOURCE] + ": " + srvPkt[PktFormat.BODY])
-                elif func == "noUser":
+                verb = serverPacket[PacketFormat.H_VERB]
+                if verb == "msg":
+                    print(serverPacket[PacketFormat.H_SOURCE] + ": " + serverPacket[PacketFormat.BODY])
+                elif verb == "all":
+                    print(serverPacket[PacketFormat.H_SOURCE] + " -> All: " + serverPacket[PacketFormat.BODY])
+                elif verb == "noUser":
                     print("User does not exist")
-
         # otherwise, the client has written in the console
         else:
             # read input from client
@@ -88,25 +84,24 @@ while True:
                     print("Message too long")
                 else:
                     if userInput[0] == "all":
-                        pkt = packetStruct.pack(VERSION, packetNum, user, "all", "msgAll", userInput[1])
-                        clientSocket.send(pkt)
-                        packetNum += 1
+                        send_packet(VERSION, packetNum, user, "", "all", userInput[1])
                     else:
                         if (len(userInput[0]) > 20 or not userInput[0]):
                             print("Invalid username")
                         else:
-                            pkt = packetStruct.pack(VERSION, packetNum, user, userInput[0], "msg", userInput[1])
-                            clientSocket.send(pkt)
-                            packetNum += 1
+                            send_packet(VERSION, packetNum, user, userInput[0], "msg", userInput[1])
             elif userInput == "who":
-                pkt = packetStruct.pack(VERSION, packetNum, user, "", "who", "")
-                clientSocket.send(pkt)
-                packetNum += 1
+                send_packet(VERSION, packetNum, user, "", "who", "")
             elif  userInput == "bye":
-                pkt = packetStruct.pack(VERSION, packetNum, user, "", "bye", "")
-                clientSocket.send(pkt)
+                send_packet(VERSION, packetNum, user, "", "bye", "")
                 clientSocket.close()
                 break
             else:
                 print("Unknown Command")
 clientSocket.close()
+
+
+def send_packet(version, packetNum, src, dest, verb, body)
+    packet = packetStruct.pack(version, packetNum, src, dest, verb, body)
+    clientSocket.send(packet)
+    packetNum += 1
