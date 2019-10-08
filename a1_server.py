@@ -55,9 +55,9 @@ def main():
         for sock in readSockets:
             # handle a new client connection
             if sock == serverSocket:
-                sd, clientAddr = serverSocket.accept()
+                sd, clientAddr = sock.accept()
                 connectionList.append(sd)
-                clientPacket = packetStruct.unpack(sock.recv(PACKET_SIZE))
+                clientPacket = packetStruct.unpack(sd.recv(PACKET_SIZE))
                 if len(connectedClientList) > 5:
                     capacityErr = "Error: Server capacity is full. Please try again later."
                     send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[PacketFormat.H_SOURCE], "err", capacityErr)
