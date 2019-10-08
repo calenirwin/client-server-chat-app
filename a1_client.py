@@ -8,7 +8,9 @@
 from socket import *
 from struct import *
 from select import select
+from enum import Enum
 VERSION = "1"
+PACKET_SIZE = 311
 
 # Packet Definition
 # ! = byte-ordering
@@ -17,6 +19,13 @@ VERSION = "1"
 # p = varaible length string where the maximum length is specified by the number
 #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
 packetStruct = Struct("!Hc21p21p11p256p")
+class PktFormat(Enum):
+    H_PACKETNUM = 0
+    H_VERSION = 1
+    H_SOURCE = 2
+    H_DEST = 3
+    H_FUNC = 4
+    BODY = 5
 packetNum = 0
 
 lokiAddr = "192.197.151.116"
@@ -37,9 +46,12 @@ while True:
     pkt = packetStruct.pack(VERSION, packetNum, user, "", "login", "")
     clientSocket.send(pkt)
     packetNum += 1
-    srvPkt = packetStruct.unpack(clientSocket.recv(311))
-    if srvPkt[4] == "dupName":
+    srvPkt = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
+    if srvPkt[PktFormat.H_FUNC] == "nameError":
         print("Username already in use")
+        continue
+    elif srvPkt[PktFormat.H_FUNC] == "connError":
+        print("The chat server is at maximum capacity, try again later")
         continue
     break
 # todo: get username/confirm
@@ -54,12 +66,17 @@ while True:
         # data from the server
         # TODO: add proper packet handling
         if s == clientSocket:
-            data = s.recv(311)
-            if not data:
+            srvPkt = packetStruct.unpack(clientSocket.recv(PACKET_SIZE))
+            if not srvPkt:
                 print('\nTerminanting chat room connection.')
                 sys.exit()
             else:
-                sys.stdout.write(data)
+                func = srvPkt[PktFormat.H_FUNC]
+                if func == "msg":
+                    print(srvPkt[PktFormat.H_SOURCE] + ": " + srvPkt[PktFormat.BODY])
+                elif func == "noUser":
+                    print("User does not exist")
+
         # otherwise, the client has written in the console
         else:
             # read input from client
@@ -89,6 +106,7 @@ while True:
                 pkt = packetStruct.pack(VERSION, packetNum, user, "", "bye", "")
                 clientSocket.send(pkt)
                 clientSocket.close()
+                break
             else:
                 print("Unknown Command")
 clientSocket.close()
