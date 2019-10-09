@@ -38,8 +38,6 @@ def main():
     packetStruct = Struct("!cH21p21p3s256p")
     lokiAddr = "192.197.151.116"
     serverPort = 50330
-    clientSocket = socket(AF_INET, SOCK_STREAM)
-    clientSocket.connect((lokiAddr, serverPort))
     while True:
         user = raw_input("Enter username: ")
         if len(user) == 0:
@@ -51,12 +49,15 @@ def main():
         elif user == "all":
             print("Username cannot be \"all\"")
             continue
-        send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "login", "")
+        clientSocket = socket(AF_INET, SOCK_STREAM)
+        clientSocket.connect((lokiAddr, serverPort))
+        send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "")
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
-        print(serverPacket[H_VERB])
         if serverPacket[H_VERB] == "err":
             print(serverPacket[BODY])
-        elif serverPacket[H_VERB] == "suc":
+            clientSocket.close()
+        elif serverPacket[H_VERB] == "srv":
+            print(serverPacket[BODY])
             break
     # todo: get username/confirm
     while True:
@@ -80,15 +81,12 @@ def main():
                         print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
                     elif verb == "all":
                         print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
-                    elif verb == "noUser":
-                        print("User does not exist")
-                    elif verb == "who"
-                        print("who: " + serverPacket[BODY])
+                    elif verb == "who" or verb == "srv" or verb == "err":
+                        print(serverPacket[BODY])
             # otherwise, the client has written in the console
             else:
                 # read input from client
                 userInput = stdin.readline().strip().split(":", 1)
-                print(userInput[0])
                 if len(userInput) == 2:
                     if (len(userInput[1]) > 255):
                         print("Message too long")

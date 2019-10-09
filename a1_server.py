@@ -54,22 +54,29 @@ def main():
             # handle a new client connection
             if sock == serverSocket:
                 sd, clientAddr = sock.accept()
-                connectionList.append(sd)
                 clientPacket = packetStruct.unpack(sd.recv(packetStruct.size))
-                if len(connectedClientList) > 5:
+                if len(connectedClientList) >= 5:
                     capacityErr = "Error: Server capacity is full. Please try again later."
                     send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", capacityErr)
+                    sd.close()
                 # handle duplicate name
                 elif clientPacket[2] in connectedClientList:
-                    dupErr = "Error: That name already exists. Please try connecting using a different name"
-                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", dupErr)
+                    dupNameErr = "Error: That name already exists. Please try connecting using a different name"
+                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", dupNameErr)
                     # remove client from connection list
-                    del connectionList[-1]
+                    sd.close()
                 else:
                     # add clients name to list of connected clients
+                    connectionList.append(sd)
                     connectedClientList.append(clientPacket[H_SOURCE])
                     # send connection confirmation message
-                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "suc", "")
+                    clients = "Connected Users: " + ", ".join(connectedClientList)
+                    send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", "Connected!\n" + clients)
+                    index = 1
+                    for client in connectedClientList:
+                        if client != clientPacket[H_SOURCE]:
+                            send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", "New User \"" + clientPacket[H_SOURCE] + "\" has connected")
+                        index += 1
 
             # handle incoming message from existing clients
             else:
@@ -83,7 +90,7 @@ def main():
                         # send the error message back to server
                     else:
                         socketIndex = connectedClientList.index(clientPacket[H_DEST]) + 1
-                        send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "err", "")
+                        send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", clientPacket[BODY])
 
                 elif verb == 'all':
                     index = 1
@@ -103,6 +110,10 @@ def main():
 
                     connectedClientList.pop(clientIndex)
                     connectionList.pop(socketIndex).close()
+                    index = 1
+                    for client in connectedClientList:
+                        send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", "\"" + clientPacket[H_SOURCE] + "\" has disconnected")
+                        index += 1
 
     serverSocket.close()
 
