@@ -11,21 +11,25 @@ from struct import *
 from select import select
 from enum import Enum
 from sys import stdin, exit
-VERSION = "1"
-PACKET_SIZE = 304
-packetNum = 0
-H_VERSION = 0
-H_PACKETNUM = 1
-H_SOURCE = 2
-H_DEST = 3
-H_VERB = 4
-BODY = 5
+
+VERSION = "1"                       # version of application/rfc
+SERVER_ADDRESS = "192.197.151.116"  # address of server
+SERVER_PORT = 50330                 # port of server
+#Constants for accessing packet elements as indices
+H_VERSION = 0   
+H_PACKETNUM = 1 
+H_SOURCE = 2    
+H_DEST = 3      
+H_VERB = 4      
+BODY = 5        
+
+ # global counter for number of packets sent
 
 
 def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
     packet = struct.pack(version, packetNum, src, dest, verb, body)
     socket.send(packet)
-    packetNum += 1
+    return packetNum + 1
 
 def main():
     # Packet Definition
@@ -35,9 +39,9 @@ def main():
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     packetStruct = Struct("!cH21p21p3s256p")
+    packetNum = 0
 
-    lokiAddr = "192.197.151.116"
-    serverPort = 50330
+    
 
     while True:
         user = raw_input("Enter username: ")
@@ -52,11 +56,11 @@ def main():
             continue
         clientSocket = socket(AF_INET, SOCK_STREAM)
         try:
-            clientSocket.connect((lokiAddr, serverPort))
+            clientSocket.connect((SERVER_ADDRESS, SERVER_PORT))
         except:
             print("Unable to connect to server")
             exit()
-        send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "")
+        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "")
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
         if serverPacket[H_VERB] == "err":
             print(serverPacket[BODY])
@@ -102,16 +106,16 @@ def main():
                         print("Message too long")
                     else:
                         if userInput[0] == "all":
-                            send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", userInput[1])
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", userInput[1])
                         else:
                             if (len(userInput[0]) > 20 or not userInput[0]):
                                 print("Invalid username")
                             else:
-                                send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", userInput[1])
+                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", userInput[1])
                 elif userInput[0] == "who":
-                    send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", "")
                 elif  userInput[0] == "bye":
-                    send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "")
                     clientSocket.close()
                     exit()
                 else:
