@@ -1,10 +1,11 @@
-# Name: a1_client.py
+# ==========================================================================================
+# Name: client.py
 # Made for COIS-4310H Assignment 1
 # Author: Calen Irwin [0630330] & Ryland Whillens [0618437]
 # Purpose: Client portion of Client/Server chat application
-# References: https://www.pubnub.com/blog/socket-programming-in-python-client-server-p2p/
-#             https://www.geeksforgeeks.org/socket-programming-multi-threading-python/
-#             https://www.binarytides.com/code-chat-application-server-client-sockets-python/
+# References: https://www.binarytides.com/code-chat-application-server-client-sockets-python/
+# ==========================================================================================
+
 from socket import *
 from struct import *
 from select import select
@@ -33,11 +34,11 @@ def main():
     # c = character
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
-    
-    
     packetStruct = Struct("!cH21p21p3s256p")
+
     lokiAddr = "192.197.151.116"
     serverPort = 50330
+
     while True:
         user = raw_input("Enter username: ")
         if len(user) == 0:
@@ -63,7 +64,7 @@ def main():
         elif serverPacket[H_VERB] == "srv":
             print(serverPacket[BODY])
             break
-    # todo: get username/confirm
+
     while True:
         # standard input socket and client socket
         socketList = [stdin, clientSocket]
@@ -73,7 +74,6 @@ def main():
         for s in readSockets:
             # if the socket is the client socket, then the client is being sent
             # data from the server
-            # TODO: add proper packet handling
             if s == clientSocket:
                 rawPacket = clientSocket.recv(packetStruct.size)
                 if(len(rawPacket) == 0):

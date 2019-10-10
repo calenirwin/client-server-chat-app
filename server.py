@@ -1,5 +1,5 @@
 # =========================================================================================
-# Name: a1_server.py
+# Name: server.py
 # Made for COIS-4310H Assignment 1
 # Author: Calen Irwin [0630330] & Ryland Whillens [0618437]
 # Purpose: Server portion of Client/Server chat application
@@ -32,7 +32,7 @@ def main():
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     packetStruct = Struct("!cH21p21p3s256p")
 
-    
+
 
     packetNum = 0
 
