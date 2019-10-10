@@ -50,7 +50,11 @@ def main():
             print("Username cannot be \"all\"")
             continue
         clientSocket = socket(AF_INET, SOCK_STREAM)
-        clientSocket.connect((lokiAddr, serverPort))
+        try:
+            clientSocket.connect((lokiAddr, serverPort))
+        except:
+            print("Unable to connect to server")
+            exit()
         send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "")
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
         if serverPacket[H_VERB] == "err":
@@ -71,18 +75,24 @@ def main():
             # data from the server
             # TODO: add proper packet handling
             if s == clientSocket:
-                serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
-                if not serverPacket:
-                    print('\nTerminanting chat room connection.')
+                rawPacket = clientSocket.recv(packetStruct.size)
+                if(len(rawPacket) == 0):
+                    print("Disconnected Unexpectedly")
+                    clientSocket.close()
                     exit()
                 else:
-                    verb = serverPacket[H_VERB]
-                    if verb == "msg":
-                        print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
-                    elif verb == "all":
-                        print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
-                    elif verb == "who" or verb == "srv" or verb == "err":
-                        print(serverPacket[BODY])
+                    serverPacket = packetStruct.unpack(rawPacket)
+                    if not serverPacket:
+                        print('\nTerminanting chat room connection.')
+                        exit()
+                    else:
+                        verb = serverPacket[H_VERB]
+                        if verb == "msg":
+                            print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
+                        elif verb == "all":
+                            print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
+                        elif verb == "who" or verb == "srv" or verb == "err":
+                            print(serverPacket[BODY])
             # otherwise, the client has written in the console
             else:
                 # read input from client

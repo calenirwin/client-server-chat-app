@@ -80,40 +80,49 @@ def main():
 
             # handle incoming message from existing clients
             else:
-                clientPacket = packetStruct.unpack(sock.recv(packetStruct.size))
-                verb = clientPacket[H_VERB]
-
-                if verb == 'msg':
-                    if clientPacket[H_DEST] not in connectedClientList:
-                        destNotFoundErr = "Error: The recipient of your message is not connected."
-                        send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", destNotFoundErr)
-                        # send the error message back to server
-                    else:
-                        socketIndex = connectedClientList.index(clientPacket[H_DEST]) + 1
-                        send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", clientPacket[BODY])
-
-                elif verb == 'all':
+                rawPacket = sock.recv(packetStruct.size)
+                if(len(rawPacket) == 0):
+                    socketIndex = connectionList.index(sock)
+                    clientName = connectedClientList.pop(socketIndex-1)
+                    connectionList.pop(socketIndex)
+                    sock.close()
                     index = 1
                     for client in connectedClientList:
-                        if client != clientPacket[H_SOURCE]:
-                            send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "all", clientPacket[BODY])
+                        send_packet(connectionList[index], packetStruct, VERSION, packetNum, "", client, "srv", "\"" + clientName + "\" has disconnected")
                         index += 1
-                        # send the packet back to sender
+                else:
+                    clientPacket = packetStruct.unpack(rawPacket)
+                    verb = clientPacket[H_VERB]
 
-                elif verb == 'who':
-                    clients = "Connected Users: " + ", ".join(connectedClientList)
-                    send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "who", clients)
+                    if verb == 'msg':
+                        if clientPacket[H_DEST] not in connectedClientList:
+                            destNotFoundErr = "Error: The recipient of your message is not connected."
+                            send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", destNotFoundErr)
+                            # send the error message back to server
+                        else:
+                            socketIndex = connectedClientList.index(clientPacket[H_DEST]) + 1
+                            send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", clientPacket[BODY])
 
-                elif verb == 'bye':
-                    clientIndex = connectedClientList.index(clientPacket[H_SOURCE])
-                    socketIndex = clientIndex + 1
+                    elif verb == 'all':
+                        index = 1
+                        for client in connectedClientList:
+                            if client != clientPacket[H_SOURCE]:
+                                send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "all", clientPacket[BODY])
+                            index += 1
+                            # send the packet back to sender
 
-                    connectedClientList.pop(clientIndex)
-                    connectionList.pop(socketIndex).close()
-                    index = 1
-                    for client in connectedClientList:
-                        send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", "\"" + clientPacket[H_SOURCE] + "\" has disconnected")
-                        index += 1
+                    elif verb == 'who':
+                        clients = "Connected Users: " + ", ".join(connectedClientList)
+                        send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "who", clients)
+
+                    elif verb == 'bye':
+                        clientIndex = connectedClientList.index(clientPacket[H_SOURCE])
+                        connectedClientList.pop(clientIndex)
+                        connectionList.pop(clientIndex+1).close()
+                        index = 1
+                        for client in connectedClientList:
+                            send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", "\"" + clientPacket[H_SOURCE] + "\" has disconnected")
+                            index += 1
 
     serverSocket.close()
 
