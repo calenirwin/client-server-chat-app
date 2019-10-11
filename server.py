@@ -1,8 +1,9 @@
 # ============================================================================================
 # Name: server.py
 # Made for COIS-4310H Assignment 1
-# Author: Calen Irwin [0630330] & Ryland Whillens [0618437]
+# Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
 # Purpose: Server portion of Client/Server chat application
+# Instructions for running => "python server.py" or "python server.py&"
 # References:   https://www.binarytides.com/code-chat-application-server-client-sockets-python/
 #               https://docs.python.org/3/library/struct.html
 # =============================================================================================

@@ -1,8 +1,9 @@
 # =============================================================================================
 # Name: client.py
 # Made for COIS-4310H Assignment 1
-# Author: Calen Irwin [0630330] & Ryland Whillens [0618437]
+# Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
 # Purpose: Client portion of Client/Server chat application
+# Instructions for running => "python client.py"
 # References:   https://www.binarytides.com/code-chat-application-server-client-sockets-python/
 #               https://docs.python.org/3/library/struct.html
 # =============================================================================================
@@ -53,7 +54,7 @@ def main():
 
     # loop to establish connection with server
     while True:
-        user = raw_input("Enter username: ")
+        user = raw_input("Enter username: ")    # user holds user entered username
         if len(user) == 0:
             print("Username cannot be empty")
             continue
