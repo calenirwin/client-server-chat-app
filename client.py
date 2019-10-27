@@ -10,6 +10,7 @@
 
 from socket import *                # import all from socket library
 from struct import *                # import all from struct library
+from hashlib import *               # import all from hashlib library
 from select import select           # import select from select library
 from sys import stdin, exit         # import stdin and exit from sys library
 
@@ -23,13 +24,27 @@ H_PACKETNUM = 1
 H_SOURCE = 2
 H_DEST = 3
 H_VERB = 4
-BODY = 5
+CHECKSUM = 5
+BODY = 6
 
 # wrapper function to create and send a packet and then iterate the packet number
-def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
-    packet = struct.pack(version, packetNum, src, dest, verb, body)
+def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, body):
+    packet = struct.pack(version, packetNum, src, dest, verb, checksum, body)
     socket.send(packet)
     return packetNum + 1
+
+# function to generate and return md5 hash
+def get_md5(body):
+    hash = hashlib.md5()
+    hash.update(body)
+    return hash.hexdigest()
+
+# function to validate packet body with given checksum
+def check_md5(checksum, body):
+    if checksum == get_md5(body):
+        return True
+    else
+        return False
 
 def main():
 
@@ -48,9 +63,11 @@ def main():
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     #--------------------------------------------------------------------------------------
-    packetStruct = Struct("!cH21p21p3s256p")
+    packetStruct = Struct("!cH21p21p3s40s256p")
 
-    packetNum = 0   # counter for total number of packets sent by client
+    packetNum = 0       # counter for total number of packets sent by client
+
+    messageList = []    # keeps track of sent messages
 
     # loop to establish connection with server
     while True:
@@ -71,7 +88,7 @@ def main():
             print("Unable to connect to server")
             exit()
         # send an initial connection packet to the server
-        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "")
+        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", get_md5(""), "")
         # receive and unpack return message from server
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
         # if an error occured while trying to connect
@@ -116,7 +133,7 @@ def main():
                             print(serverPacket[BODY])
             # otherwise, the client has written in the console
             else:
-                # read input from client and split it once at the first ":" character into a listen
+                # read input from client and split it once at the first ":" character into a list
                 # userInput is a 2 item list where userInput[0] = text left of ":" and userInput[1] = text right of ":"
                 userInput = stdin.readline().strip().split(":", 1)
                 # if the list has 2 items, then a message is being sent
@@ -125,16 +142,16 @@ def main():
                         print("Message too long")
                     else:
                         if userInput[0] == "all":
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", userInput[1])
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_md5(userInput[1]), userInput[1])
                         else:
                             if (len(userInput[0]) > 20 or not userInput[0]):
                                 print("Invalid username")
                             else:
-                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", userInput[1])
+                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", get_md5(userInput[1]), userInput[1])
                 elif userInput[0] == "who":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", get_md5(""), "")
                 elif  userInput[0] == "bye":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", get_md5(""), "")
                     clientSocket.close()
                     exit()
                 # an unexpected input was given
