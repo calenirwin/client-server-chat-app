@@ -34,16 +34,9 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
 
 # function to generate and return md5 hash
 def get_md5(body):
-    hash = hashlib.md5()
-    hash.update(body)
-    return hash.hexdigest()
-
-# function to validate packet body with given checksum
-def check_md5(checksum, body):
-    if checksum == get_md5(body):
-        return True
-    else
-        return False
+    hash = hashlib.md5()        # md5 hashing algorithm
+    hash.update(body)           # hash the given argument
+    return hash.hexdigest()     # 40 character hash string
 
 def main():
 
@@ -86,9 +79,10 @@ def main():
                 sd, clientAddr = sock.accept()  # sd - new client socket descriptor
                 clientPacket = packetStruct.unpack(sd.recv(packetStruct.size))
                 # validate packet checksum
-                if not check_md5(clientPacket[CHECKSUM], clientPacket[BODY]):
+                if not clientPacket[CHECKSUM] == get_md5(clientPacket[BODY]):
                     # request message rebroadcast
-                    break
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_md5(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
+                    sd.close()  # close new client socket
 
                 # if there are already atleast 5 connected clients
                 if len(connectedClientList) >= 5:
@@ -136,8 +130,9 @@ def main():
                 else:
                     clientPacket = packetStruct.unpack(rawPacket)
                     # validate packet checksum
-                    if not check_md5(clientPacket[CHECKSUM], clientPacket[BODY]):
+                    if not clientPacket[CHECKSUM] == get_md5(clientPacket[BODY]):
                         # request message rebroadcast
+                        packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_md5(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
                         break
 
                     verb = clientPacket[H_VERB]
