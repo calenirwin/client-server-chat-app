@@ -41,10 +41,7 @@ def get_md5(body):
 
 # function to validate packet body with given checksum
 def check_md5(checksum, body):
-    if checksum == get_md5(body):
-        return True
-    else
-        return False
+    return checksum == get_md5(body):
 
 def main():
 
