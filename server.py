@@ -27,15 +27,15 @@ CHECKSUM = 5
 BODY = 6
 
 # wrapper function to create and send a packet and then iterate the packet number
-def send_packet(socket, struct, version, packetNum, src, dest, verb, body):
-    packet = struct.pack(version, packetNum, src, dest, verb, body)
+def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, body):
+    packet = struct.pack(version, packetNum, src, dest, verb, checksum, body)
     socket.send(packet)
     return packetNum + 1
 
 # function to generate and return md5 hash
-def get_md5(body):
-    hash = hashlib.md5()        # md5 hashing algorithm
-    hash.update(body)           # hash the given argument
+def get_sha256(body):
+    hash = sha256()        # sha256 hashing algorithm
+    hash.update(body.encode("utf-8"))           # hash the given argument
     return hash.hexdigest()     # 40 character hash string
 
 def main():
@@ -55,7 +55,7 @@ def main():
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     #--------------------------------------------------------------------------------------
-    packetStruct = Struct("!cH21p21p3s40s256p")
+    packetStruct = Struct("!cH21p21p3s64s256p")
 
     packetNum = 0               # counter for total number of packets sent by server
 
@@ -79,22 +79,23 @@ def main():
                 sd, clientAddr = sock.accept()  # sd - new client socket descriptor
                 clientPacket = packetStruct.unpack(sd.recv(packetStruct.size))
                 # validate packet checksum
-                if not clientPacket[CHECKSUM] == get_md5(clientPacket[BODY]):
+                if not (clientPacket[CHECKSUM] == get_sha256(clientPacket[BODY])):
                     # request message rebroadcast
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_md5(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
+                    msg = str(clientPacket[H_PACKETNUM])
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg)
                     sd.close()  # close new client socket
 
                 # if there are already atleast 5 connected clients
-                if len(connectedClientList) >= 5:
+                elif len(connectedClientList) >= 5:
                     # notify client attempting to connect that the server has reached its capacity
                     capacityErr = "Error: Server capacity is full. Please try again later."
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_md5(capacityErr), capacityErr)
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_sha256(capacityErr), capacityErr)
                     sd.close()  # close new client socket
                 # if there is already a client connected using the requested username
                 elif clientPacket[2] in connectedClientList:
                     # notify client attempting to connect that the username is already in use
                     dupNameErr = "Error: That name already exists. Please try connecting using a different name."
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_md5(dupNameErr), dupNameErr)
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_sha256(dupNameErr), dupNameErr)
                     sd.close()  # close new client socket
                 # if there were no errors, proceed to handle the new client connection
                 else:
@@ -102,13 +103,13 @@ def main():
                     connectedClientList.append(clientPacket[H_SOURCE])              # add client's name to list of connected clients
                     connectionMsg = "Connected!\nConnected Users: " + ", ".join(connectedClientList)  # create a string of all connected clients
                     # send connection confirmation message
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", get_md5(connectionMsg), connectionMsg)
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", get_sha256(connectionMsg), connectionMsg)
                     index = 1
                     # notify all connected clients of the new connection
                     for client in connectedClientList:
                         if client != clientPacket[H_SOURCE]:
                             connectionNotice = "New User \"" + clientPacket[H_SOURCE] + "\" has connected"
-                            packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_md5(connectionNotice), connectionNotice)
+                            packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_sha256(connectionNotice), connectionNotice)
                         index += 1
 
             # handle incoming packet from existing client
@@ -125,14 +126,14 @@ def main():
                     # notify other connected clients of the client disconnection
                     for client in connectedClientList:
                         disconnectionNotice = "\"" + clientName + "\" has disconnected"
-                        packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, "", client, "srv", get_md5(disconnectionNotice), disconnectionNotice)
+                        packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, "", client, "srv", get_sha256(disconnectionNotice), disconnectionNotice)
                         index += 1
                 else:
                     clientPacket = packetStruct.unpack(rawPacket)
                     # validate packet checksum
-                    if not clientPacket[CHECKSUM] == get_md5(clientPacket[BODY]):
+                    if not clientPacket[CHECKSUM] == get_sha256(clientPacket[BODY]):
                         # request message rebroadcast
-                        packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_md5(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
+                        packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
                         break
 
                     verb = clientPacket[H_VERB]
@@ -142,22 +143,22 @@ def main():
                         if clientPacket[H_DEST] not in connectedClientList:
                             # send an error message back to the sender
                             destNotFoundErr = "Error: The recipient of your message is not connected."
-                            packetNum = send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_md5(destNotFoundErr), destNotFoundErr)
+                            packetNum = send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "err", get_sha256(destNotFoundErr), destNotFoundErr)
                         # otherwise send the message to the destination
                         else:
                             socketIndex = connectedClientList.index(clientPacket[H_DEST]) + 1
-                            packetNum = send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", get_md5(clientPacket[BODY]), clientPacket[BODY])
+                            packetNum = send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", get_sha256(clientPacket[BODY]), clientPacket[BODY])
                     elif verb == 'all':
                         index = 1
                         # send message to all clients except for the messages sender
                         for client in connectedClientList:
                             if client != clientPacket[H_SOURCE]:
-                                packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "all", get_md5(clientPacket[BODY]), clientPacket[BODY])
+                                packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "all", get_sha256(clientPacket[BODY]), clientPacket[BODY])
                             index += 1
                     elif verb == 'who':
                         # send a list of all connected clients (inclusive) to the packet sender
                         clients = "Connected Users: " + ", ".join(connectedClientList)
-                        packetNum = send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "who", get_md5(clients), clients)
+                        packetNum = send_packet(sock, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "who", get_sha256(clients), clients)
                     # disconnect the clients connection and remove their information from the client lists
                     elif verb == 'bye':
                         clientIndex = connectedClientList.index(clientPacket[H_SOURCE]) # find the index of the client
@@ -167,7 +168,7 @@ def main():
                         # notify all connected clients of the client disconnection
                         for client in connectedClientList:
                             disconnectionNotice = "\"" + clientPacket[H_SOURCE] + "\" has disconnected"
-                            packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_md5(disconnectionNotice), disconnectionNotice)
+                            packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_sha256(disconnectionNotice), disconnectionNotice)
                             index += 1
 
     serverSocket.close()    # close server socket

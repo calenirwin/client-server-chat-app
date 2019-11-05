@@ -34,9 +34,9 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, b
     return packetNum + 1
 
 # function to generate and return md5 hash
-def get_md5(body):
-    hash = hashlib.md5()        # md5 hashing algorithm
-    hash.update(body)           # hash the given argument
+def get_sha256(body):
+    hash = sha256()        # sha256 hashing algorithm
+    hash.update(body.encode("utf-8"))           # hash the given argument
     return hash.hexdigest()     # 40 character hash string
 
 def main():
@@ -56,7 +56,7 @@ def main():
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     #--------------------------------------------------------------------------------------
-    packetStruct = Struct("!cH21p21p3s40s256p")
+    packetStruct = Struct("!cH21p21p3s64s256p")
 
     packetNum = 0       # counter for total number of packets sent by client
 
@@ -81,7 +81,7 @@ def main():
             print("Unable to connect to server")
             exit()
         # send an initial connection packet to the server
-        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", get_md5(""), "")
+        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", get_sha256(""), "")
         messageList.append("")
         # receive and unpack return message from server
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
@@ -109,14 +109,14 @@ def main():
                 if(len(rawPacket) == 0):
                     print("Disconnected Unexpectedly")
                     clientSocket.close()
-                    messageList.clear()
+                    messageList[:] = []
                     exit()
                 else:
                     serverPacket = packetStruct.unpack(rawPacket)
                     # if packet wasn't unpacked properly, disconnect
                     if not serverPacket:
                         print('\nTerminanting chat room connection.')
-                        messageList.clear()
+                        messageList[:] = []
                         exit()
                     else:
                         verb = serverPacket[H_VERB]
@@ -126,7 +126,7 @@ def main():
                         # the packet number corresponds to the index of the message to be rebroadcasted in the message list
                         if verb == "reb":
                             rebroadcastMsg = messageList[serverPacket[BODY]]
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_md5(rebroadcastMsg), rebroadcastMsg)
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_sha256(rebroadcastMsg), rebroadcastMsg)
                             messageList.append(rebroadcastMsg)
                         elif verb == "msg":
                             print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
@@ -145,20 +145,19 @@ def main():
                         print("Message too long")
                     else:
                         if userInput[0] == "all":
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_md5(userInput[1]), userInput[1])
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_sha256(userInput[1]), userInput[1])
                             messageList.append(userInput[1])
                         else:
                             if (len(userInput[0]) > 20 or not userInput[0]):
                                 print("Invalid username")
                             else:
-                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", get_md5(userInput[1]), userInput[1])
+                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", get_sha256(userInput[1]), userInput[1])
                                 messageList.append(userInput[1])
                 elif userInput[0] == "who":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", get_md5(""), "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", get_sha256(""), "")
                     messageList.append("")
                 elif  userInput[0] == "bye":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", get_md5(""), "")
-                    messageList.clear()
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", get_sha256(""), "")
                     clientSocket.close()
                     exit()
                 # an unexpected input was given
