@@ -13,6 +13,7 @@ from struct import *                # import all from struct library
 from hashlib import *               # import all from hashlib library
 from select import select           # import select from select library
 from sys import stdin, exit         # import stdin and exit from sys library
+from random import random
 
 VERSION = "1"                       # version of application/rfc
 SERVER_ADDRESS = "192.197.151.116"  # address of server
@@ -29,6 +30,10 @@ BODY = 6
 
 # wrapper function to create and send a packet and then iterate the packet number
 def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, body):
+    rand = random()
+    print(rand)
+    if rand > 0.9:
+        checksum = ""
     packet = struct.pack(version, packetNum, src, dest, verb, checksum, body)
     socket.send(packet)
     return packetNum + 1
@@ -37,7 +42,7 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, b
 def get_sha256(body):
     hash = sha256()        # sha256 hashing algorithm
     hash.update(body.encode("utf-8"))           # hash the given argument
-    return hash.hexdigest()     # 40 character hash string
+    return hash.hexdigest()     # 64 character hash string
 
 def main():
 
@@ -82,9 +87,22 @@ def main():
             exit()
         # send an initial connection packet to the server
         packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", get_sha256(""), "")
-        messageList.append("")
+        messageList.append(("", "con", ""))
         # receive and unpack return message from server
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
+        while (serverPacket[H_VERB] == "reb"):
+            
+            clientSocket = socket(AF_INET, SOCK_STREAM)             # open new socket
+            try:
+                clientSocket.connect((SERVER_ADDRESS, SERVER_PORT)) # connect to server on socket
+            except:
+                print("Unable to connect to server")
+                exit()
+            rebroadcastMsg = messageList[int(serverPacket[BODY])]
+            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0])
+            messageList.append(rebroadcastMsg)
+            serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
+
         # if an error occured while trying to connect
         if serverPacket[H_VERB] == "err":
             print(serverPacket[BODY])       # print the error
@@ -125,8 +143,8 @@ def main():
                         # packet to be rebroadcasted is contained within the body of the incomming packets
                         # the packet number corresponds to the index of the message to be rebroadcasted in the message list
                         if verb == "reb":
-                            rebroadcastMsg = messageList[serverPacket[BODY]]
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_sha256(rebroadcastMsg), rebroadcastMsg)
+                            rebroadcastMsg = messageList[int(serverPacket[BODY])]
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0])
                             messageList.append(rebroadcastMsg)
                         elif verb == "msg":
                             print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
@@ -146,16 +164,16 @@ def main():
                     else:
                         if userInput[0] == "all":
                             packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_sha256(userInput[1]), userInput[1])
-                            messageList.append(userInput[1])
+                            messageList.append((userInput[1], "all", ""))
                         else:
                             if (len(userInput[0]) > 20 or not userInput[0]):
                                 print("Invalid username")
                             else:
                                 packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", get_sha256(userInput[1]), userInput[1])
-                                messageList.append(userInput[1])
+                                messageList.append((userInput[1], "msg", userInput[0]))
                 elif userInput[0] == "who":
                     packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", get_sha256(""), "")
-                    messageList.append("")
+                    messageList.append(("", "who", ""))
                 elif  userInput[0] == "bye":
                     packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", get_sha256(""), "")
                     clientSocket.close()
