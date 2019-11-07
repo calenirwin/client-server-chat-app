@@ -34,9 +34,9 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, b
 
 # function to generate and return md5 hash
 def get_sha256(body):
-    hash = sha256()        # sha256 hashing algorithm
+    hash = sha256()                             # sha256 hashing algorithm
     hash.update(body.encode("utf-8"))           # hash the given argument
-    return hash.hexdigest()     # 64S character hash string
+    return hash.hexdigest()                     # 64 character hash string
 
 def main():
 
@@ -82,8 +82,9 @@ def main():
                 if not (clientPacket[CHECKSUM] == get_sha256(clientPacket[BODY])):
                     # request message rebroadcast
                     msg = str(clientPacket[H_PACKETNUM])
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg) 
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg)
                     sd.close()  # close new client socket
+                    print("Packet " + msg + " from user \"" + clientPacket[H_SOURCE] + "\" corrupt. Requesting rebroadcast.")
 
                 # if there are already atleast 5 connected clients
                 elif len(connectedClientList) >= 5:
@@ -99,9 +100,10 @@ def main():
                     sd.close()  # close new client socket
                 # if there were no errors, proceed to handle the new client connection
                 else:
-                    connectionList.append(sd)                                       # add new client socket descriptor to connection list
-                    connectedClientList.append(clientPacket[H_SOURCE])              # add client's name to list of connected clients
-                    connectionMsg = "Connected!\nConnected Users: " + ", ".join(connectedClientList)  # create a string of all connected clients
+                    connectionList.append(sd)                                                           # add new client socket descriptor to connection list
+                    connectedClientList.append(clientPacket[H_SOURCE])                                  # add client's name to list of connected clients
+                    print("Client \"" + clientPacket[H_SOURCE] "\" has connected on socket " + sd)
+                    connectionMsg = "Connected!\nConnected Users: " + ", ".join(connectedClientList)    # create a string of all connected clients
                     # send connection confirmation message
                     packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", get_sha256(connectionMsg), connectionMsg)
                     index = 1
@@ -117,10 +119,10 @@ def main():
                 rawPacket = sock.recv(packetStruct.size)
                 # handles an abrupt manual disconnect (socket closed)
                 if(len(rawPacket) == 0):
-                    socketIndex = connectionList.index(sock)            # find the index of the client's socket
-                    clientName = connectedClientList.pop(socketIndex-1) # remove client from client list
-                    connectionList.pop(socketIndex)                     # remove socket from connection list
-                    sock.close()                                        # close socket
+                    socketIndex = connectionList.index(sock)                                                        # find the index of the client's socket
+                    clientName = connectedClientList.pop(socketIndex-1)                                             # remove client from client list
+                    print("Client \"" + clientName "\" has disconnected from socket " + connectionList[socketIndex])
+                    connectionList.pop(socketIndex).close()                                                         # remove socket from connection list and close socket
 
                     index = 1
                     # notify other connected clients of the client disconnection
@@ -163,6 +165,7 @@ def main():
                         clientIndex = connectedClientList.index(clientPacket[H_SOURCE]) # find the index of the client
                         connectedClientList.pop(clientIndex)                            # remove client from client list
                         connectionList.pop(clientIndex+1).close()                       # remove the client socket and close the connection
+                        print("Client \"" + clientPacket[H_SOURCE] "\" has disconnected from socket " + sd)
                         index = 1
                         # notify all connected clients of the client disconnection
                         for client in connectedClientList:
