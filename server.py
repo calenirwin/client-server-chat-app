@@ -36,7 +36,7 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, b
 def get_sha256(body):
     hash = sha256()        # sha256 hashing algorithm
     hash.update(body.encode("utf-8"))           # hash the given argument
-    return hash.hexdigest()     # 40 character hash string
+    return hash.hexdigest()     # 64S character hash string
 
 def main():
 
@@ -82,7 +82,7 @@ def main():
                 if not (clientPacket[CHECKSUM] == get_sha256(clientPacket[BODY])):
                     # request message rebroadcast
                     msg = str(clientPacket[H_PACKETNUM])
-                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg)
+                    packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg) 
                     sd.close()  # close new client socket
 
                 # if there are already atleast 5 connected clients
@@ -130,15 +130,14 @@ def main():
                         index += 1
                 else:
                     clientPacket = packetStruct.unpack(rawPacket)
+                    verb = clientPacket[H_VERB]
                     # validate packet checksum
                     if not clientPacket[CHECKSUM] == get_sha256(clientPacket[BODY]):
                         # request message rebroadcast
-                        packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(clientPacket[H_PACKETNUM]), clientPacket[H_PACKETNUM])
-                        break
-
-                    verb = clientPacket[H_VERB]
-
-                    if verb == 'msg':
+                        msg = str(clientPacket[H_PACKETNUM])
+                        packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", get_sha256(msg), msg)
+                        print("Packet " + msg + " from user \"" + clientPacket[H_SOURCE] + "\" corrupt. Requesting rebroadcast.")
+                    elif verb == 'msg':
                         # if the destination of a message is not connected to the server
                         if clientPacket[H_DEST] not in connectedClientList:
                             # send an error message back to the sender
