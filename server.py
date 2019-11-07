@@ -1,6 +1,6 @@
 # ============================================================================================
 # Name: server.py
-# Made for COIS-4310H Assignment 1
+# Made for COIS-4310H Assignment 2
 # Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
 # Purpose: Server portion of Client/Server chat application
 # Instructions for running => "python server.py" or "python server.py&"
@@ -13,7 +13,7 @@ from struct import *                # import all from struct library
 from hashlib import *               # import all from hashlib library
 from select import select           # import select from select library
 
-VERSION = "1"                       # version of application/rfc
+VERSION = "2"                       # version of application/rfc
 SERVER_ADDRESS = "192.197.151.116"  # address of server
 SERVER_PORT = 50330                 # port of server
 

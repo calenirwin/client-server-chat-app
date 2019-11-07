@@ -1,6 +1,6 @@
 # =============================================================================================
 # Name: client.py
-# Made for COIS-4310H Assignment 1
+# Made for COIS-4310H Assignment 2
 # Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
 # Purpose: Client portion of Client/Server chat application
 # Instructions for running => "python client.py"
@@ -15,7 +15,7 @@ from select import select           # import select from select library
 from sys import stdin, exit         # import stdin and exit from sys library
 from random import random           # import random from random library
 
-VERSION = "1"                       # version of application/rfc
+VERSION = "2"                       # version of application/rfc
 SERVER_ADDRESS = "192.197.151.116"  # address of server
 SERVER_PORT = 50330                 # port of server
 
