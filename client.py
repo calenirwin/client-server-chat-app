@@ -13,7 +13,7 @@ from struct import *                # import all from struct library
 from hashlib import *               # import all from hashlib library
 from select import select           # import select from select library
 from sys import stdin, exit         # import stdin and exit from sys library
-from random import random
+from random import random           # import random from random library
 
 VERSION = "1"                       # version of application/rfc
 SERVER_ADDRESS = "192.197.151.116"  # address of server
@@ -40,9 +40,9 @@ def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, b
 
 # function to generate and return md5 hash
 def get_sha256(body):
-    hash = sha256()        # sha256 hashing algorithm
-    hash.update(body.encode("utf-8"))           # hash the given argument
-    return hash.hexdigest()     # 64 character hash string
+    hash = sha256()                      # sha256 hashing algorithm
+    hash.update(body.encode("utf-8"))    # hash the given argument
+    return hash.hexdigest()              # 64 character hash string
 
 def main():
 
@@ -92,7 +92,7 @@ def main():
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
         # if packet rebroadcast requested, attempt to resend packet until successful
         while (serverPacket[H_VERB] == "reb"):
-            
+
             clientSocket = socket(AF_INET, SOCK_STREAM)             # open new socket
             try:
                 clientSocket.connect((SERVER_ADDRESS, SERVER_PORT)) # connect to server on socket
