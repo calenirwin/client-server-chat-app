@@ -31,7 +31,7 @@ BODY = 6
 # wrapper function to create and send a packet and then iterate the packet number
 def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, body):
     rand = random()
-    print(rand)
+    # corrupt checksum
     if rand > 0.9:
         checksum = ""
     packet = struct.pack(version, packetNum, src, dest, verb, checksum, body)
@@ -90,6 +90,7 @@ def main():
         messageList.append(("", "con", ""))
         # receive and unpack return message from server
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
+        # if packet rebroadcast requested, attempt to resend packet until successful
         while (serverPacket[H_VERB] == "reb"):
             
             clientSocket = socket(AF_INET, SOCK_STREAM)             # open new socket

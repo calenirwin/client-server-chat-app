@@ -102,15 +102,15 @@ def main():
                 else:
                     connectionList.append(sd)                                                           # add new client socket descriptor to connection list
                     connectedClientList.append(clientPacket[H_SOURCE])                                  # add client's name to list of connected clients
-                    print("Client \"" + clientPacket[H_SOURCE] + "\" has connected on socket " + sd)
+                    connectionNotice = "New User \"" + clientPacket[H_SOURCE] + "\" has connected"
+                    print(connectionNotice)
                     connectionMsg = "Connected!\nConnected Users: " + ", ".join(connectedClientList)    # create a string of all connected clients
                     # send connection confirmation message
                     packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", get_sha256(connectionMsg), connectionMsg)
-                    index = 1
                     # notify all connected clients of the new connection
+                    index = 1
                     for client in connectedClientList:
                         if client != clientPacket[H_SOURCE]:
-                            connectionNotice = "New User \"" + clientPacket[H_SOURCE] + "\" has connected"
                             packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_sha256(connectionNotice), connectionNotice)
                         index += 1
 
@@ -121,13 +121,13 @@ def main():
                 if(len(rawPacket) == 0):
                     socketIndex = connectionList.index(sock)                                                        # find the index of the client's socket
                     clientName = connectedClientList.pop(socketIndex-1)                                             # remove client from client list
-                    print("Client \"" + clientName + "\" has disconnected from socket " + connectionList[socketIndex])
+                    disconnectionNotice = "\"" + clientName + "\" has disconnected"
+                    print(disconnectionNotice)
                     connectionList.pop(socketIndex).close()                                                         # remove socket from connection list and close socket
 
-                    index = 1
                     # notify other connected clients of the client disconnection
+                    index = 1
                     for client in connectedClientList:
-                        disconnectionNotice = "\"" + clientName + "\" has disconnected"
                         packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, "", client, "srv", get_sha256(disconnectionNotice), disconnectionNotice)
                         index += 1
                 else:
@@ -165,11 +165,11 @@ def main():
                         clientIndex = connectedClientList.index(clientPacket[H_SOURCE]) # find the index of the client
                         connectedClientList.pop(clientIndex)                            # remove client from client list
                         connectionList.pop(clientIndex+1).close()                       # remove the client socket and close the connection
-                        print("Client \"" + clientPacket[H_SOURCE] + "\" has disconnected from socket " + sd)
+                        disconnectionNotice = "\"" + clientPacket[H_SOURCE] + "\" has disconnected"
+                        print(disconnectionNotice)
                         index = 1
                         # notify all connected clients of the client disconnection
                         for client in connectedClientList:
-                            disconnectionNotice = "\"" + clientPacket[H_SOURCE] + "\" has disconnected"
                             packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "srv", get_sha256(disconnectionNotice), disconnectionNotice)
                             index += 1
 
