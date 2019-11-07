@@ -102,7 +102,7 @@ def main():
                 else:
                     connectionList.append(sd)                                                           # add new client socket descriptor to connection list
                     connectedClientList.append(clientPacket[H_SOURCE])                                  # add client's name to list of connected clients
-                    print("Client \"" + clientPacket[H_SOURCE] "\" has connected on socket " + sd)
+                    print("Client \"" + clientPacket[H_SOURCE] + "\" has connected on socket " + sd)
                     connectionMsg = "Connected!\nConnected Users: " + ", ".join(connectedClientList)    # create a string of all connected clients
                     # send connection confirmation message
                     packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "srv", get_sha256(connectionMsg), connectionMsg)
@@ -121,7 +121,7 @@ def main():
                 if(len(rawPacket) == 0):
                     socketIndex = connectionList.index(sock)                                                        # find the index of the client's socket
                     clientName = connectedClientList.pop(socketIndex-1)                                             # remove client from client list
-                    print("Client \"" + clientName "\" has disconnected from socket " + connectionList[socketIndex])
+                    print("Client \"" + clientName + "\" has disconnected from socket " + connectionList[socketIndex])
                     connectionList.pop(socketIndex).close()                                                         # remove socket from connection list and close socket
 
                     index = 1
@@ -165,7 +165,7 @@ def main():
                         clientIndex = connectedClientList.index(clientPacket[H_SOURCE]) # find the index of the client
                         connectedClientList.pop(clientIndex)                            # remove client from client list
                         connectionList.pop(clientIndex+1).close()                       # remove the client socket and close the connection
-                        print("Client \"" + clientPacket[H_SOURCE] "\" has disconnected from socket " + sd)
+                        print("Client \"" + clientPacket[H_SOURCE] + "\" has disconnected from socket " + sd)
                         index = 1
                         # notify all connected clients of the client disconnection
                         for client in connectedClientList:
