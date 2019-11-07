@@ -2,6 +2,7 @@
 # Name: client.py
 # Made for COIS-4310H Assignment 2
 # Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
+# Last Modification Date: 2019-11-07
 # Purpose: Client portion of Client/Server chat application
 # Instructions for running => "python client.py"
 # References:   https://www.binarytides.com/code-chat-application-server-client-sockets-python/

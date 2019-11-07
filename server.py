@@ -2,6 +2,7 @@
 # Name: server.py
 # Made for COIS-4310H Assignment 2
 # Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
+# Last Modification Date: 2019-11-07
 # Purpose: Server portion of Client/Server chat application
 # Instructions for running => "python server.py" or "python server.py&"
 # References:   https://www.binarytides.com/code-chat-application-server-client-sockets-python/
@@ -67,6 +68,8 @@ def main():
     serverSocket.listen(5)                              # listen with max of 5
 
     connectionList.append(serverSocket)                 # add master socket to connection list
+
+    print("Now listening on " + str(SERVER_ADDRESS) + " port " + str(SERVER_PORT))  # console message to notify that server is actively listening
 
     # main loop to handle new connections and client requests
     while True:
