@@ -1,2 +1,2 @@
-# cois4310-assignment-1
+# cois4310-assignment
 Client/server chat messaging application
