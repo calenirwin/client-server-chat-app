@@ -1,6 +1,6 @@
 # =============================================================================================
 # Name: client.py
-# Made for COIS-4310H Assignment 2
+# Made for COIS-4310H Assignment 3
 # Author: Calen Irwin [0630330] & Ryland Whillans [0618437]
 # Last Modification Date: 2019-11-07
 # Purpose: Client portion of Client/Server chat application
@@ -15,8 +15,9 @@ from hashlib import *               # import all from hashlib library
 from select import select           # import select from select library
 from sys import stdin, exit         # import stdin and exit from sys library
 from random import random           # import random from random library
+from codecs import encode, decode   # import encode/decode from codecs
 
-VERSION = "2"                       # version of application/rfc
+VERSION = "3"                       # version of application/rfc
 SERVER_ADDRESS = "192.197.151.116"  # address of server
 SERVER_PORT = 50330                 # port of server
 
@@ -26,16 +27,19 @@ H_PACKETNUM = 1
 H_SOURCE = 2
 H_DEST = 3
 H_VERB = 4
-CHECKSUM = 5
-BODY = 6
+H_ENC = 5
+CHECKSUM = 6
+BODY = 7
 
 # wrapper function to create and send a packet and then iterate the packet number
-def send_packet(socket, struct, version, packetNum, src, dest, verb, checksum, body):
+def send_packet(socket, struct, version, packetNum, src, dest, verb, enc, checksum, body, messageList):
     rand = random()
-    # corrupt checksum
+    # randomly corrupt checksum
     if rand > 0.9:
         checksum = ""
-    packet = struct.pack(version, packetNum, src, dest, verb, checksum, body)
+    packet = struct.pack(version, packetNum, src, dest, verb, enc, checksum, body)
+    # add values to list for rebroadcast
+    messageList.append((body, verb, dest, enc))
     socket.send(packet)
     return packetNum + 1
 
@@ -44,6 +48,16 @@ def get_sha256(body):
     hash = sha256()                      # sha256 hashing algorithm
     hash.update(body.encode("utf-8"))    # hash the given argument
     return hash.hexdigest()              # 64 character hash string
+
+def encrypt_msg(message, encrypt):
+    if encrypt == "rot13":
+        message = encode(message, 'rot_13')
+    return message
+
+def decrypt_msg(message, encrypt):
+    if encrypt == "rot13":
+        message = decode(message, 'rot_13')
+    return message
 
 def main():
 
@@ -62,11 +76,12 @@ def main():
     # p = varaible length string where the maximum length is specified by the number
     #     proceeding it minus 1 (e.g. 21p is a string of maximum 20 characters)
     #--------------------------------------------------------------------------------------
-    packetStruct = Struct("!cH21p21p3s64s256p")
+    packetStruct = Struct("!cH21p21p3s8p64s256p")
 
     packetNum = 0       # counter for total number of packets sent by client
+    encrypt = "none"     # current encryption type
 
-    messageList = []    # stores ALL sent messages
+    messageList = []    # for each sent message stores information for rebroadcast in a tuple. Format: (MessageBody, Verb, Destination, EncryptionType)
 
     # loop to establish connection with server
     while True:
@@ -87,8 +102,7 @@ def main():
             print("Unable to connect to server")
             exit()
         # send an initial connection packet to the server
-        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", get_sha256(""), "")
-        messageList.append(("", "con", ""))
+        packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "con", "none", get_sha256(""), "", messageList)
         # receive and unpack return message from server
         serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
         # if packet rebroadcast requested, attempt to resend packet until successful
@@ -101,8 +115,7 @@ def main():
                 print("Unable to connect to server")
                 exit()
             rebroadcastMsg = messageList[int(serverPacket[BODY])]
-            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0])
-            messageList.append(rebroadcastMsg)
+            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], rebroadcastMsg[3], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0], messageList)
             serverPacket = packetStruct.unpack(clientSocket.recv(packetStruct.size))
 
         # if an error occured while trying to connect
@@ -146,12 +159,11 @@ def main():
                         # the packet number corresponds to the index of the message to be rebroadcasted in the message list
                         if verb == "reb":
                             rebroadcastMsg = messageList[int(serverPacket[BODY])]
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0])
-                            messageList.append(rebroadcastMsg)
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], rebroadcastMsg[3], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0], messageList)
                         elif verb == "msg":
-                            print(serverPacket[H_SOURCE] + ": " + serverPacket[BODY])
+                            print(serverPacket[H_SOURCE] + ": " + decrypt_msg(serverPacket[BODY], serverPacket[H_ENC]))
                         elif verb == "all":
-                            print(serverPacket[H_SOURCE] + " -> All: " + serverPacket[BODY])
+                            print(serverPacket[H_SOURCE] + " -> All: " + decrypt_msg(serverPacket[BODY], serverPacket[H_ENC]))
                         elif verb == "who" or verb == "srv" or verb == "err":
                             print(serverPacket[BODY])
             # otherwise, the client has written in the console
@@ -161,25 +173,32 @@ def main():
                 userInput = stdin.readline().strip().split(":", 1)
                 # if the list has 2 items, then a message is being sent
                 if len(userInput) == 2:
+                    # check message length
                     if (len(userInput[1]) > 255):
                         print("Message too long")
                     else:
+                        msg = encrypt_msg(userInput[1], encrypt)
+                        # broadcast message
                         if userInput[0] == "all":
-                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", get_sha256(userInput[1]), userInput[1])
-                            messageList.append((userInput[1], "all", ""))
+                            packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "all", encrypt, get_sha256(msg), msg, messageList)
+                        # direct message
                         else:
                             if (len(userInput[0]) > 20 or not userInput[0]):
                                 print("Invalid username")
                             else:
-                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", get_sha256(userInput[1]), userInput[1])
-                                messageList.append((userInput[1], "msg", userInput[0]))
+                                packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, userInput[0], "msg", encrypt, get_sha256(msg), msg, messageList)
+                # check connected users
                 elif userInput[0] == "who":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", get_sha256(""), "")
-                    messageList.append(("", "who", ""))
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "who", "none", get_sha256(""), "", messageList)
+                # disconnect
                 elif  userInput[0] == "bye":
-                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", get_sha256(""), "")
+                    packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, "", "bye", "none", get_sha256(""), "", messageList)
                     clientSocket.close()
                     exit()
+                # toggle encryption
+                elif userInput[0] == "enc":
+                    encrypt = "rot13" if encrypt == "none" else "none"
+                    print("Encrytion mode set to \"" + encrypt + "\"")
                 # an unexpected input was given
                 else:
                     print("Unknown Command")
