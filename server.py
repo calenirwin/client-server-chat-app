@@ -142,6 +142,7 @@ def main():
                         # request message rebroadcast
                         msg = str(clientPacket[H_PACKETNUM])
                         packetNum = send_packet(sd, packetStruct, VERSION, packetNum, "", clientPacket[H_SOURCE], "reb", "none", get_sha256(msg), msg)
+                        # display message content
                         print("Packet " + msg + " from user \"" + clientPacket[H_SOURCE] + "\" corrupt. Requesting rebroadcast.")
                     elif verb == 'msg':
                         # if the destination of a message is not connected to the server
@@ -153,6 +154,7 @@ def main():
                         else:
                             socketIndex = connectedClientList.index(clientPacket[H_DEST]) + 1
                             packetNum = send_packet(connectionList[socketIndex], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], clientPacket[H_DEST], "msg", clientPacket[H_ENC], get_sha256(clientPacket[BODY]), clientPacket[BODY])
+                            # display message content
                             print(clientPacket[H_SOURCE] + " -> " + clientPacket[H_DEST] + ": " + clientPacket[BODY])
                     elif verb == 'all':
                         index = 1
@@ -161,6 +163,7 @@ def main():
                             if client != clientPacket[H_SOURCE]:
                                 packetNum = send_packet(connectionList[index], packetStruct, VERSION, packetNum, clientPacket[H_SOURCE], client, "all", clientPacket[H_ENC], get_sha256(clientPacket[BODY]), clientPacket[BODY])
                             index += 1
+                        # display message content
                         print(clientPacket[H_SOURCE] + " -> All: " + clientPacket[BODY])
                     elif verb == 'who':
                         # send a list of all connected clients (inclusive) to the packet sender

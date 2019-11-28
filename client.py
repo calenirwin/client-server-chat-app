@@ -49,11 +49,13 @@ def get_sha256(body):
     hash.update(body.encode("utf-8"))    # hash the given argument
     return hash.hexdigest()              # 64 character hash string
 
+# encrypts given message with given encryption type. currently supports rot13
 def encrypt_msg(message, encrypt):
     if encrypt == "rot13":
         message = encode(message, 'rot_13')
     return message
 
+# encrypts given message with given encryption type. currently supports rot13
 def decrypt_msg(message, encrypt):
     if encrypt == "rot13":
         message = decode(message, 'rot_13')
@@ -85,6 +87,7 @@ def main():
 
     # loop to establish connection with server
     while True:
+        # get name and check validity
         user = raw_input("Enter username: ")
         if len(user) == 0:
             print("Username cannot be empty")
@@ -160,6 +163,7 @@ def main():
                         if verb == "reb":
                             rebroadcastMsg = messageList[int(serverPacket[BODY])]
                             packetNum = send_packet(clientSocket, packetStruct, VERSION, packetNum, user, rebroadcastMsg[2], rebroadcastMsg[1], rebroadcastMsg[3], get_sha256(rebroadcastMsg[0]), rebroadcastMsg[0], messageList)
+                        # display incoming messages
                         elif verb == "msg":
                             print(serverPacket[H_SOURCE] + ": " + decrypt_msg(serverPacket[BODY], serverPacket[H_ENC]))
                         elif verb == "all":
@@ -177,6 +181,7 @@ def main():
                     if (len(userInput[1]) > 255):
                         print("Message too long")
                     else:
+                        # encrypt with current encrpytion setting
                         msg = encrypt_msg(userInput[1], encrypt)
                         # broadcast message
                         if userInput[0] == "all":
